@@ -64,6 +64,49 @@ python -c "import nltk; nltk.download('stopwords')"
 └── requirements.txt
 ```
 
+## Quick Start
+
+### Example Usage
+Run the example script to see all features in action:
+```bash
+python example_usage.py
+```
+
+This will demonstrate:
+- Basic indexing and querying
+- Boolean query parsing
+- Ranked search with TF-IDF
+- Query processing modes (TAAT vs DAAT)
+- Metrics collection
+- Index persistence
+
+### Data Visualization
+Analyze and visualize word frequencies:
+```bash
+# For news data
+python visualize_data.py --data-source news --data-path ./data/News_Datasets --max-docs 1000
+
+# For wiki data
+python visualize_data.py --data-source wiki --max-docs 1000
+```
+
+This generates:
+- Word frequency bar charts (raw and preprocessed)
+- Frequency distribution plots (Zipf's law)
+- Statistical summaries
+
+### Evaluation
+Compare different index configurations:
+```bash
+python evaluate.py --data-source news --data-path ./data/News_Datasets --max-docs 1000
+```
+
+This produces:
+- Performance comparison tables
+- Latency plots (P95, P99)
+- Memory usage comparison
+- Throughput analysis
+
 ## Usage
 
 ### Building an Index
