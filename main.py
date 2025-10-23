@@ -13,6 +13,13 @@ try:
     ELASTICSEARCH_AVAILABLE = True
 except ImportError:
     ELASTICSEARCH_AVAILABLE = False
+
+try:
+    from src.indexing.redis_index import RedisIndex
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+
 from src.query.boolean_query_parser import BooleanQueryParser
 from src.query.query_processor import QueryProcessor
 from src.utils.data_loader import DataLoader
@@ -21,18 +28,20 @@ from src.utils.metrics import MetricsCollector
 
 def build_index(index_type: str, data_source: str, data_path: str = None, 
                 max_docs: int = None, version: str = "v1.0", es_host: str = "localhost",
-                es_port: int = 9200):
+                es_port: int = 9200, redis_host: str = "localhost", redis_port: int = 6379):
     """
     Build an index from data
     
     Args:
-        index_type: Type of index (boolean, ranked, tfidf, elasticsearch)
+        index_type: Type of index (boolean, ranked, tfidf, elasticsearch, redis)
         data_source: Data source (news, wiki)
         data_path: Path to data (for news)
         max_docs: Maximum number of documents to index
         version: Index version
         es_host: Elasticsearch host (if using elasticsearch)
         es_port: Elasticsearch port (if using elasticsearch)
+        redis_host: Redis host (if using redis)
+        redis_port: Redis port (if using redis)
         
     Returns:
         Built index
@@ -51,6 +60,11 @@ def build_index(index_type: str, data_source: str, data_path: str = None,
             raise ImportError("Elasticsearch is not available. Install with: pip install elasticsearch")
         index = ElasticsearchIndex(version=version, index_name=index_name, 
                                    host=es_host, port=es_port)
+    elif index_type == "redis":
+        if not REDIS_AVAILABLE:
+            raise ImportError("Redis is not available. Install with: pip install redis")
+        index = RedisIndex(version=version, index_name=index_name,
+                          redis_host=redis_host, redis_port=redis_port)
     else:
         raise ValueError(f"Unknown index type: {index_type}")
     
@@ -158,7 +172,7 @@ def main():
     parser = argparse.ArgumentParser(description="Search Index System")
     parser.add_argument("--mode", choices=["build", "query", "evaluate"], 
                        default="build", help="Operation mode")
-    parser.add_argument("--index-type", choices=["boolean", "ranked", "tfidf", "elasticsearch"],
+    parser.add_argument("--index-type", choices=["boolean", "ranked", "tfidf", "elasticsearch", "redis"],
                        default="boolean", help="Type of index")
     parser.add_argument("--data-source", choices=["news", "wiki"],
                        default="news", help="Data source")
@@ -175,6 +189,8 @@ def main():
     parser.add_argument("--version", default="v1.0", help="Index version")
     parser.add_argument("--es-host", default="localhost", help="Elasticsearch host")
     parser.add_argument("--es-port", type=int, default=9200, help="Elasticsearch port")
+    parser.add_argument("--redis-host", default="localhost", help="Redis host")
+    parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
     
     args = parser.parse_args()
     
@@ -188,15 +204,18 @@ def main():
     if args.mode == "build":
         # Build index
         index = build_index(args.index_type, args.data_source, args.data_path,
-                          args.max_docs, args.version, args.es_host, args.es_port)
+                          args.max_docs, args.version, args.es_host, args.es_port,
+                          args.redis_host, args.redis_port)
         
-        # Save index (not needed for Elasticsearch)
-        if args.index_type != "elasticsearch":
+        # Save index (not needed for Elasticsearch or Redis as they persist externally)
+        if args.index_type not in ["elasticsearch", "redis"]:
             print(f"\nSaving index to {index_file}...")
             index.save(index_file)
             print("Index saved successfully")
-        else:
+        elif args.index_type == "elasticsearch":
             print("\nElasticsearch index is stored on ES server")
+        elif args.index_type == "redis":
+            print("\nRedis index is stored on Redis server")
         
         # Collect metrics
         metrics = MetricsCollector()
@@ -207,7 +226,7 @@ def main():
     
     elif args.mode == "query":
         # Load index
-        if args.index_type != "elasticsearch":
+        if args.index_type not in ["elasticsearch", "redis"]:
             print(f"Loading index from {index_file}...")
             
             if args.index_type == "boolean":
@@ -219,7 +238,7 @@ def main():
             
             index.load(index_file)
             print(f"Loaded index with {index.doc_count} documents")
-        else:
+        elif args.index_type == "elasticsearch":
             # Connect to Elasticsearch
             if not ELASTICSEARCH_AVAILABLE:
                 print("Error: Elasticsearch library not installed")
@@ -231,6 +250,18 @@ def main():
                                       index_name=f"{args.data_source}_{args.index_type}_index",
                                       host=args.es_host, port=args.es_port)
             index.load("")  # Check connection
+        elif args.index_type == "redis":
+            # Connect to Redis
+            if not REDIS_AVAILABLE:
+                print("Error: Redis library not installed")
+                print("Install with: pip install redis")
+                return
+            
+            print(f"Connecting to Redis at {args.redis_host}:{args.redis_port}...")
+            index = RedisIndex(version=args.version,
+                              index_name=f"{args.data_source}_{args.index_type}_index",
+                              redis_host=args.redis_host, redis_port=args.redis_port)
+            print(f"Connected to Redis with {index.doc_count} documents")
         
         # Get queries
         queries = []

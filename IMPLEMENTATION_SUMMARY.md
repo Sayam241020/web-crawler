@@ -43,6 +43,14 @@ This document summarizes the complete search index system implementation based o
   - Boolean, phrase, and relevance search
   - Performance comparison with self-implemented indexes
 
+##### Redis Integration
+- [x] **RedisIndex-v1.0**
+  - Redis-based inverted index
+  - Distributed and persistent storage
+  - Fast in-memory operations
+  - Boolean and phrase search support
+  - Performance comparison with Elasticsearch
+
 #### Query Processing
 
 ##### Boolean Query Parser
@@ -104,7 +112,12 @@ This document summarizes the complete search index system implementation based o
 
 #### Different Datastore Choices (Plot.A y=1,2)
 - [x] y=1: Custom objects (pickle/JSON on local disk) - Implemented
-- [ ] y=2: PostgreSQL GIN / RocksDB / Redis - Not implemented
+- [x] y=2: Redis datastore - Implemented
+  - RedisIndex class extends BaseIndex
+  - Uses Redis for distributed/persistent storage
+  - Supports inverted index with position tracking
+  - Fast in-memory operations with persistence
+- [ ] y=3: PostgreSQL GIN / RocksDB - Not implemented
   - System architecture supports adding new datastores
   - Would require creating new index classes extending BaseIndex
   - Interface is defined, implementation is straightforward
