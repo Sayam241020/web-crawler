@@ -13,6 +13,19 @@ try:
     ELASTICSEARCH_AVAILABLE = True
 except ImportError:
     ELASTICSEARCH_AVAILABLE = False
+
+try:
+    from src.indexing.rocksdb_index import RocksDBIndex
+    ROCKSDB_AVAILABLE = True
+except ImportError:
+    ROCKSDB_AVAILABLE = False
+
+try:
+    from src.indexing.postgresql_index import PostgreSQLIndex
+    POSTGRESQL_AVAILABLE = True
+except ImportError:
+    POSTGRESQL_AVAILABLE = False
+
 from src.query.boolean_query_parser import BooleanQueryParser
 from src.query.query_processor import QueryProcessor
 from src.utils.data_loader import DataLoader
@@ -21,18 +34,20 @@ from src.utils.metrics import MetricsCollector
 
 def build_index(index_type: str, data_source: str, data_path: str = None, 
                 max_docs: int = None, version: str = "v1.0", es_host: str = "localhost",
-                es_port: int = 9200):
+                es_port: int = 9200, db_path: str = None, db_config: dict = None):
     """
     Build an index from data
     
     Args:
-        index_type: Type of index (boolean, ranked, tfidf, elasticsearch)
+        index_type: Type of index (boolean, ranked, tfidf, elasticsearch, rocksdb, postgresql)
         data_source: Data source (news, wiki)
         data_path: Path to data (for news)
         max_docs: Maximum number of documents to index
         version: Index version
         es_host: Elasticsearch host (if using elasticsearch)
         es_port: Elasticsearch port (if using elasticsearch)
+        db_path: RocksDB database path (if using rocksdb)
+        db_config: PostgreSQL connection config (if using postgresql)
         
     Returns:
         Built index
@@ -51,6 +66,14 @@ def build_index(index_type: str, data_source: str, data_path: str = None,
             raise ImportError("Elasticsearch is not available. Install with: pip install elasticsearch")
         index = ElasticsearchIndex(version=version, index_name=index_name, 
                                    host=es_host, port=es_port)
+    elif index_type == "rocksdb":
+        if not ROCKSDB_AVAILABLE:
+            raise ImportError("RocksDB is not available. Install with: pip install python-rocksdb")
+        index = RocksDBIndex(version=version, index_name=index_name, db_path=db_path)
+    elif index_type == "postgresql":
+        if not POSTGRESQL_AVAILABLE:
+            raise ImportError("PostgreSQL is not available. Install with: pip install psycopg2-binary")
+        index = PostgreSQLIndex(version=version, index_name=index_name, db_config=db_config)
     else:
         raise ValueError(f"Unknown index type: {index_type}")
     
@@ -158,7 +181,7 @@ def main():
     parser = argparse.ArgumentParser(description="Search Index System")
     parser.add_argument("--mode", choices=["build", "query", "evaluate"], 
                        default="build", help="Operation mode")
-    parser.add_argument("--index-type", choices=["boolean", "ranked", "tfidf", "elasticsearch"],
+    parser.add_argument("--index-type", choices=["boolean", "ranked", "tfidf", "elasticsearch", "rocksdb", "postgresql"],
                        default="boolean", help="Type of index")
     parser.add_argument("--data-source", choices=["news", "wiki"],
                        default="news", help="Data source")
@@ -175,6 +198,12 @@ def main():
     parser.add_argument("--version", default="v1.0", help="Index version")
     parser.add_argument("--es-host", default="localhost", help="Elasticsearch host")
     parser.add_argument("--es-port", type=int, default=9200, help="Elasticsearch port")
+    parser.add_argument("--db-path", help="RocksDB database path")
+    parser.add_argument("--pg-host", default="localhost", help="PostgreSQL host")
+    parser.add_argument("--pg-port", type=int, default=5432, help="PostgreSQL port")
+    parser.add_argument("--pg-database", default="search_index", help="PostgreSQL database")
+    parser.add_argument("--pg-user", default="postgres", help="PostgreSQL user")
+    parser.add_argument("--pg-password", default="postgres", help="PostgreSQL password")
     
     args = parser.parse_args()
     
@@ -182,21 +211,34 @@ def main():
     os.makedirs(args.index_path, exist_ok=True)
     os.makedirs(args.metrics_dir, exist_ok=True)
     
+    # Prepare database config for PostgreSQL
+    db_config = None
+    if args.index_type == "postgresql":
+        db_config = {
+            'host': args.pg_host,
+            'port': args.pg_port,
+            'database': args.pg_database,
+            'user': args.pg_user,
+            'password': args.pg_password
+        }
+    
     index_file = os.path.join(args.index_path, 
                              f"{args.data_source}_{args.index_type}_{args.version}.pkl")
     
     if args.mode == "build":
         # Build index
         index = build_index(args.index_type, args.data_source, args.data_path,
-                          args.max_docs, args.version, args.es_host, args.es_port)
+                          args.max_docs, args.version, args.es_host, args.es_port,
+                          args.db_path, db_config)
         
-        # Save index (not needed for Elasticsearch)
-        if args.index_type != "elasticsearch":
+        # Save index (not needed for Elasticsearch, RocksDB, PostgreSQL - they handle persistence)
+        if args.index_type not in ["elasticsearch", "rocksdb", "postgresql"]:
             print(f"\nSaving index to {index_file}...")
             index.save(index_file)
             print("Index saved successfully")
         else:
-            print("\nElasticsearch index is stored on ES server")
+            print(f"\n{args.index_type.capitalize()} index is stored in its native storage")
+            index.save("")  # Call save for any finalization needed
         
         # Collect metrics
         metrics = MetricsCollector()
@@ -207,7 +249,7 @@ def main():
     
     elif args.mode == "query":
         # Load index
-        if args.index_type != "elasticsearch":
+        if args.index_type in ["boolean", "ranked", "tfidf"]:
             print(f"Loading index from {index_file}...")
             
             if args.index_type == "boolean":
@@ -219,7 +261,7 @@ def main():
             
             index.load(index_file)
             print(f"Loaded index with {index.doc_count} documents")
-        else:
+        elif args.index_type == "elasticsearch":
             # Connect to Elasticsearch
             if not ELASTICSEARCH_AVAILABLE:
                 print("Error: Elasticsearch library not installed")
@@ -231,6 +273,30 @@ def main():
                                       index_name=f"{args.data_source}_{args.index_type}_index",
                                       host=args.es_host, port=args.es_port)
             index.load("")  # Check connection
+        elif args.index_type == "rocksdb":
+            # Connect to RocksDB
+            if not ROCKSDB_AVAILABLE:
+                print("Error: RocksDB library not installed")
+                print("Install with: pip install python-rocksdb")
+                return
+            
+            print(f"Loading RocksDB index...")
+            index = RocksDBIndex(version=args.version, 
+                                index_name=f"{args.data_source}_{args.index_type}_index",
+                                db_path=args.db_path)
+            index.load("")  # Load metadata
+        elif args.index_type == "postgresql":
+            # Connect to PostgreSQL
+            if not POSTGRESQL_AVAILABLE:
+                print("Error: PostgreSQL library not installed")
+                print("Install with: pip install psycopg2-binary")
+                return
+            
+            print(f"Connecting to PostgreSQL...")
+            index = PostgreSQLIndex(version=args.version, 
+                                   index_name=f"{args.data_source}_{args.index_type}_index",
+                                   db_config=db_config)
+            index.load("")  # Load metadata
         
         # Get queries
         queries = []
