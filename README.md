@@ -1,6 +1,6 @@
 # Web Crawler and Search Index System
 
-A comprehensive search indexing system with support for Boolean, ranked (TF), and TF-IDF indexes. Implements query processing with Boolean operators (AND, OR, NOT, PHRASE) and supports both News and Wikipedia datasets.
+A comprehensive search indexing system with support for Boolean, ranked (TF), and TF-IDF indexes. Implements query processing with Boolean operators (AND, OR, NOT, PHRASE) and supports both News and Wikipedia datasets. Now includes RocksDB and PostgreSQL backends for persistent storage.
 
 ## Features
 
@@ -9,6 +9,8 @@ A comprehensive search indexing system with support for Boolean, ranked (TF), an
 - **Ranked Index (SelfIndex-v1.2)**: Term frequency-based ranking
 - **TF-IDF Index (SelfIndex-v1.3)**: Advanced ranking with TF-IDF scoring
 - **Elasticsearch Index (ESIndex-v1.0)**: Wrapper around Elasticsearch for comparison
+- **RocksDB Index**: High-performance key-value store backend with efficient persistence
+- **PostgreSQL Index**: Relational database backend with GIN indexes for text search
 
 ### Query Processing
 - Boolean query parser supporting:
@@ -33,11 +35,17 @@ A comprehensive search indexing system with support for Boolean, ranked (TF), an
 ## Installation
 
 ```bash
-# Install dependencies
+# Install base dependencies
 pip install -r requirements.txt
 
 # Download NLTK data (will be done automatically on first run)
 python -c "import nltk; nltk.download('stopwords')"
+
+# Optional: Install RocksDB backend
+pip install python-rocksdb
+
+# Optional: Install PostgreSQL backend
+pip install psycopg2-binary
 ```
 
 ## Project Structure
@@ -48,6 +56,11 @@ python -c "import nltk; nltk.download('stopwords')"
 │   ├── indexing/           # Index implementations
 │   │   ├── base_index.py
 │   │   ├── boolean_index.py
+│   │   ├── ranked_index.py
+│   │   ├── tfidf_index.py
+│   │   ├── elasticsearch_index.py
+│   │   ├── rocksdb_index.py
+│   │   └── postgresql_index.py
 │   │   ├── ranked_index.py
 │   │   └── tfidf_index.py
 │   ├── preprocessing/      # Text processing
@@ -150,6 +163,46 @@ python main.py --mode build \
     --es-port 9200
 ```
 
+#### RocksDB Index (Optional)
+**Prerequisites**: RocksDB Python library
+```bash
+# Install RocksDB Python client
+pip install python-rocksdb
+
+# Build index
+python main.py --mode build \
+    --index-type rocksdb \
+    --data-source news \
+    --data-path ./data/News_Datasets \
+    --max-docs 1000 \
+    --db-path ./rocksdb_data/my_index
+```
+
+#### PostgreSQL Index (Optional)
+**Prerequisites**: PostgreSQL server must be running
+```bash
+# Install PostgreSQL Python client
+pip install psycopg2-binary
+
+# Start PostgreSQL (Docker example)
+docker run -d -p 5432:5432 \
+    -e POSTGRES_PASSWORD=postgres \
+    -e POSTGRES_DB=search_index \
+    postgres:latest
+
+# Build index
+python main.py --mode build \
+    --index-type postgresql \
+    --data-source news \
+    --data-path ./data/News_Datasets \
+    --max-docs 1000 \
+    --pg-host localhost \
+    --pg-port 5432 \
+    --pg-database search_index \
+    --pg-user postgres \
+    --pg-password postgres
+```
+
 ### Querying
 
 #### Simple Query
@@ -194,6 +247,28 @@ python main.py --mode query \
     --data-source wiki \
     --query "artificial intelligence" \
     --query-mode daat
+```
+
+#### Query RocksDB Index
+```bash
+python main.py --mode query \
+    --index-type rocksdb \
+    --data-source news \
+    --query "machine learning" \
+    --db-path ./rocksdb_data/my_index
+```
+
+#### Query PostgreSQL Index
+```bash
+python main.py --mode query \
+    --index-type postgresql \
+    --data-source news \
+    --query "machine learning" \
+    --pg-host localhost \
+    --pg-port 5432 \
+    --pg-database search_index \
+    --pg-user postgres \
+    --pg-password postgres
 ```
 
 #### Batch Queries from File
