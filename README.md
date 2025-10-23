@@ -8,6 +8,7 @@ A comprehensive search indexing system with support for Boolean, ranked (TF), an
 - **Boolean Index (SelfIndex-v1.1)**: Basic inverted index with document IDs and position information
 - **Ranked Index (SelfIndex-v1.2)**: Term frequency-based ranking
 - **TF-IDF Index (SelfIndex-v1.3)**: Advanced ranking with TF-IDF scoring
+- **Elasticsearch Index (ESIndex-v1.0)**: Wrapper around Elasticsearch for comparison
 
 ### Query Processing
 - Boolean query parser supporting:
@@ -128,6 +129,25 @@ python main.py --mode build \
     --data-source wiki \
     --max-docs 1000 \
     --version v1.3
+```
+
+#### Elasticsearch Index (Optional)
+**Prerequisites**: Elasticsearch must be running
+```bash
+# Start Elasticsearch (Docker example)
+docker run -d -p 9200:9200 -e "discovery.type=single-node" elasticsearch:8.x.x
+
+# Install Elasticsearch Python client
+pip install elasticsearch
+
+# Build index
+python main.py --mode build \
+    --index-type elasticsearch \
+    --data-source news \
+    --data-path ./data/News_Datasets \
+    --max-docs 1000 \
+    --es-host localhost \
+    --es-port 9200
 ```
 
 ### Querying

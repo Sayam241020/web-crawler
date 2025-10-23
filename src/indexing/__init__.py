@@ -6,4 +6,8 @@ from .boolean_index import BooleanIndex
 from .ranked_index import RankedIndex
 from .tfidf_index import TFIDFIndex
 
-__all__ = ['BaseIndex', 'BooleanIndex', 'RankedIndex', 'TFIDFIndex']
+try:
+    from .elasticsearch_index import ElasticsearchIndex
+    __all__ = ['BaseIndex', 'BooleanIndex', 'RankedIndex', 'TFIDFIndex', 'ElasticsearchIndex']
+except ImportError:
+    __all__ = ['BaseIndex', 'BooleanIndex', 'RankedIndex', 'TFIDFIndex']
