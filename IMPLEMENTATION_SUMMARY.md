@@ -43,6 +43,20 @@ This document summarizes the complete search index system implementation based o
   - Boolean, phrase, and relevance search
   - Performance comparison with self-implemented indexes
 
+##### RocksDB Integration
+- [x] **RocksDB Index**
+  - High-performance key-value store backend
+  - Efficient persistent storage with automatic write buffering
+  - TF-IDF scoring with inverted index stored in RocksDB
+  - Automatic metadata management
+
+##### PostgreSQL Integration
+- [x] **PostgreSQL Index**
+  - Relational database backend with ACID guarantees
+  - GIN indexes for efficient text search
+  - Native SQL-based TF-IDF calculation
+  - Support for complex queries using SQL
+
 #### Query Processing
 
 ##### Boolean Query Parser
@@ -104,10 +118,11 @@ This document summarizes the complete search index system implementation based o
 
 #### Different Datastore Choices (Plot.A y=1,2)
 - [x] y=1: Custom objects (pickle/JSON on local disk) - Implemented
-- [ ] y=2: PostgreSQL GIN / RocksDB / Redis - Not implemented
-  - System architecture supports adding new datastores
-  - Would require creating new index classes extending BaseIndex
-  - Interface is defined, implementation is straightforward
+- [x] y=2: PostgreSQL GIN / RocksDB - Implemented
+  - RocksDB index implementation complete with efficient key-value storage
+  - PostgreSQL index implementation complete with GIN indexes for text search
+  - Both extend BaseIndex and support full TF-IDF search functionality
+  - Native persistence handling for both backends
 
 #### Compression Methods (Plot.AB z=1,2)
 - [ ] z=1: Simple compression
@@ -131,7 +146,9 @@ web-crawler/
 │   │   ├── boolean_index.py
 │   │   ├── ranked_index.py
 │   │   ├── tfidf_index.py
-│   │   └── elasticsearch_index.py
+│   │   ├── elasticsearch_index.py
+│   │   ├── rocksdb_index.py
+│   │   └── postgresql_index.py
 │   ├── preprocessing/     # Text processing
 │   │   └── text_processor.py
 │   ├── query/            # Query processing
