@@ -61,8 +61,6 @@ pip install psycopg2-binary
 │   │   ├── elasticsearch_index.py
 │   │   ├── rocksdb_index.py
 │   │   └── postgresql_index.py
-│   │   ├── ranked_index.py
-│   │   └── tfidf_index.py
 │   ├── preprocessing/      # Text processing
 │   │   └── text_processor.py
 │   ├── query/             # Query processing

@@ -40,7 +40,7 @@ class PostgreSQLIndex(BaseIndex):
         super().__init__(version, index_name)
         self.text_processor = TextProcessor(use_stemming, use_stopwords)
         
-        # PostgreSQL connection
+        # PostgreSQL connection config (contains password - handle with care)
         self.db_config = db_config or {
             'host': 'localhost',
             'port': 5432,
@@ -283,8 +283,7 @@ class PostgreSQLIndex(BaseIndex):
         """
         # Save final metadata
         self._save_metadata()
-        print(f"PostgreSQL index data is stored in database: {self.db_config['database']}")
-        print(f"Tables: {self.table_prefix}_documents, {self.table_prefix}_inverted_index")
+        # PostgreSQL data persists automatically in the database
     
     def load(self, path: str):
         """
@@ -295,7 +294,7 @@ class PostgreSQLIndex(BaseIndex):
         """
         # Data is automatically loaded on initialization
         self._load_metadata()
-        print(f"PostgreSQL index loaded from database: {self.db_config['database']}")
+        # PostgreSQL data loaded from database tables
     
     def close(self):
         """Close the PostgreSQL connection"""

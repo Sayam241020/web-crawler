@@ -45,6 +45,10 @@ indices/
 *.json
 !requirements.txt
 
+# Database directories
+rocksdb_data/
+postgres_data/
+
 # Metrics and logs
 metrics/
 logs/
