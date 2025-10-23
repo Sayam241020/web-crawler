@@ -9,6 +9,7 @@ A comprehensive search indexing system with support for Boolean, ranked (TF), an
 - **Ranked Index (SelfIndex-v1.2)**: Term frequency-based ranking
 - **TF-IDF Index (SelfIndex-v1.3)**: Advanced ranking with TF-IDF scoring
 - **Elasticsearch Index (ESIndex-v1.0)**: Wrapper around Elasticsearch for comparison
+- **Redis Index (RedisIndex-v1.0)**: Redis-based distributed inverted index
 
 ### Query Processing
 - Boolean query parser supporting:
@@ -148,6 +149,25 @@ python main.py --mode build \
     --max-docs 1000 \
     --es-host localhost \
     --es-port 9200
+```
+
+#### Redis Index (Optional)
+**Prerequisites**: Redis must be running
+```bash
+# Start Redis (Docker example)
+docker run -d -p 6379:6379 redis:latest
+
+# Install Redis Python client
+pip install redis
+
+# Build index
+python main.py --mode build \
+    --index-type redis \
+    --data-source news \
+    --data-path ./data/News_Datasets \
+    --max-docs 1000 \
+    --redis-host localhost \
+    --redis-port 6379
 ```
 
 ### Querying
