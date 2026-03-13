@@ -39,7 +39,7 @@ git --version
 
 Open your terminal and run:
 ```bash
-git clone https://github.com/yomakata/web-crawler.git
+git clone https://github.com/Sayam241020/web-crawler.git
 cd web-crawler
 ```
 
